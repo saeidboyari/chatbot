@@ -83,6 +83,59 @@
       font-size: 13px;
     }
 
+    .phone-input-group {
+      margin-bottom: 20px;
+    }
+
+    .phone-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+    }
+
+    .phone-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .phone-prefix {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #f8f9fa;
+      border: 1px solid #d0d7de;
+      border-radius: 10px;
+      padding: 0 14px;
+      font-size: 15px;
+      color: #444;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .phone-input {
+      flex: 1;
+      border: 1px solid #d0d7de;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      color: #333;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .phone-input:focus {
+      border-color: #25D366;
+      box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
+    }
+
+    .phone-hint {
+      font-size: 12px;
+      color: #999;
+      margin-top: 5px;
+    }
+
     .file-selected {
       display: none;
       align-items: center;
@@ -204,6 +257,15 @@
       <p class="subtitle">Lade eine PDF-Datei hoch und erhalte die Zusammenfassung direkt per <span class="whatsapp-logo">WhatsApp</span>.</p>
     </div>
 
+    <div class="phone-input-group">
+      <label class="phone-label">📱 WhatsApp-Nummer</label>
+      <div class="phone-input-row">
+        <div class="phone-prefix">🇩🇪 +49</div>
+        <input type="tel" id="phoneInput" class="phone-input" placeholder="151 23456789" maxlength="20" />
+      </div>
+      <p class="phone-hint">Ohne führende 0 eingeben, z.B. 151 23456789</p>
+    </div>
+
     <div class="upload-area" id="uploadArea">
       <input type="file" id="fileInput" accept=".pdf" />
       <div class="upload-icon">📂</div>
@@ -250,13 +312,23 @@
     const fileSelected = document.getElementById('fileSelected');
     const submitBtn = document.getElementById('submitBtn');
 
+    const phoneInput = document.getElementById('phoneInput');
+
+    function checkReady() {
+      const hasFile = fileInput.files.length > 0;
+      const hasPhone = phoneInput.value.trim().length >= 6;
+      submitBtn.disabled = !(hasFile && hasPhone);
+    }
+
+    phoneInput.addEventListener('input', checkReady);
+
     fileInput.addEventListener('change', () => {
       const file = fileInput.files[0];
       if (!file) return;
       document.getElementById('fileName').textContent = file.name;
       document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
       fileSelected.classList.add('visible');
-      submitBtn.disabled = false;
+      checkReady();
     });
 
     uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
@@ -273,7 +345,11 @@
 
     async function uploadPDF() {
       const file = fileInput.files[0];
-      if (!file) return;
+      const rawPhone = phoneInput.value.trim().replace(/\s/g, '');
+      if (!file || !rawPhone) return;
+
+      // Nummer normalisieren: +49 voranstellen (führende 0 entfernen falls vorhanden)
+      const phone = '+49' + rawPhone.replace(/^0/, '');
 
       submitBtn.disabled = true;
       document.getElementById('statusLoading').style.display = 'flex';
@@ -282,11 +358,15 @@
 
       const formData = new FormData();
       formData.append('data', file, file.name);
+      formData.append('phone', phone);
 
       try {
         const res = await fetch(WEBHOOK_URL, { method: 'POST', body: formData });
         if (!res.ok) throw new Error(`Server Fehler: ${res.status}`);
         document.getElementById('statusLoading').style.display = 'none';
+        document.getElementById('statusSuccess').innerHTML =
+          `✅ <strong>Zusammenfassung wurde per WhatsApp gesendet!</strong><br>
+           Schau auf dein Handy (${phone}) – die Nachricht sollte in Kürze ankommen.`;
         document.getElementById('statusSuccess').style.display = 'block';
       } catch (err) {
         document.getElementById('statusLoading').style.display = 'none';
