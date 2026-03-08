@@ -701,7 +701,7 @@
       </div>
       <div class="controls-row" style="margin-top:4px">
         <input type="password" class="webhook-input" id="openaiKey"
-          placeholder="OpenAI API Key (sk-…)"
+          placeholder="n8n TTS URL (https://…/webhook/phili-tts)"
           style="font-size:0.7rem;padding:8px 12px;flex:1">
         <button class="btn-save" style="font-size:0.65rem;padding:8px 12px" onclick="saveOpenAIKey()">KEY OK</button>
       </div>
@@ -713,7 +713,7 @@
 
 <script>
 let webhookUrl = localStorage.getItem('phili_webhook') || 'https://mkpitconsulting.app.n8n.cloud/webhook/973a921e-e48b-464c-9623-38875d319574/chat';
-let openaiApiKey = localStorage.getItem('phili_openai_key') || '';
+let ttsUrl = localStorage.getItem('phili_tts_url') || '';
 let ttsOn = true;
 let selectedVoice = 'nova';
 let isRecording = false;
@@ -735,15 +735,20 @@ window.addEventListener('load', () => {
     document.getElementById('webhookUrl').value = webhookUrl;
     document.getElementById('webhookDisplay').textContent = truncate(webhookUrl);
   }
-  if (openaiApiKey) {
-    document.getElementById('openaiKey').value = openaiApiKey;
+  // TTS URL aus Chat-URL ableiten (phili-tts statt /chat)
+  if (!ttsUrl && webhookUrl) {
+    ttsUrl = webhookUrl.replace('/webhook/', '/webhook/').replace(/\/[^/]+\/chat$/, '/phili-tts');
+    localStorage.setItem('phili_tts_url', ttsUrl);
+  }
+  if (ttsUrl) {
+    document.getElementById('openaiKey').value = ttsUrl;
   }
 });
 
 function saveOpenAIKey() {
-  openaiApiKey = document.getElementById('openaiKey').value.trim();
-  localStorage.setItem('phili_openai_key', openaiApiKey);
-  showToast('✓ OpenAI Key gespeichert', 'success');
+  ttsUrl = document.getElementById('openaiKey').value.trim();
+  localStorage.setItem('phili_tts_url', ttsUrl);
+  showToast('✓ TTS URL gespeichert', 'success');
 }
 
 function truncate(url) {
@@ -769,8 +774,8 @@ function toggleTTS() {
 async function speak(text) {
   if (!ttsOn) return;
 
-  // Fallback: Browser TTS wenn kein API Key
-  if (!openaiApiKey) {
+  // Fallback: Browser TTS wenn kein n8n TTS-Webhook
+  if (!ttsUrl) {
     const synth = window.speechSynthesis;
     synth.cancel();
     const utt = new SpeechSynthesisUtterance(text);
@@ -781,22 +786,14 @@ async function speak(text) {
     return;
   }
 
-  // OpenAI TTS
+  // TTS über n8n (OpenAI Key bleibt sicher in n8n)
   if (currentAudio) { currentAudio.pause(); currentAudio = null; }
   setAvatarState('talking');
   try {
-    const res = await fetch('https://api.openai.com/v1/audio/speech', {
+    const res = await fetch(ttsUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'tts-1',
-        input: text,
-        voice: selectedVoice || 'nova',
-        speed: 1.0
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text, voice: selectedVoice || 'nova' })
     });
     if (!res.ok) throw new Error('TTS Fehler ' + res.status);
     const blob = await res.blob();
