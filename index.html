@@ -451,7 +451,7 @@ async function speak(text) {
     const res = await fetch(TTS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, voice: 'nova' })
+      body: JSON.stringify({ text, voice: 'alloy' })
     });
     if (!res.ok) throw new Error('TTS ' + res.status);
     const blob = await res.blob();
