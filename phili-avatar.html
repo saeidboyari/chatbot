@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phili Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c12;
+    --surface: #0d1520;
+    --border: #1a2a3a;
+    --accent: #00d4ff;
+    --accent2: #7b2fff;
+    --text: #e8f4ff;
+    --muted: #4a6a8a;
+    --success: #00ff9d;
+    --danger: #ff3d6e;
+    --glow: 0 0 40px rgba(0,212,255,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(ellipse 60% 40% at 50% -10%, rgba(0,212,255,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 30% at 80% 80%, rgba(123,47,255,0.06) 0%, transparent 50%);
+  }
+
+  header {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0 30px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: 0.15em;
+    color: var(--accent);
+    text-transform: uppercase;
+  }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .main {
+    width: 100%;
+    max-width: 900px;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 30px;
+    align-items: start;
+  }
+
+  .avatar-panel {
+    position: sticky;
+    top: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .avatar-frame {
+    position: relative;
+    width: 240px;
+    height: 240px;
+  }
+
+  .avatar-ring {
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    background: conic-gradient(from 0deg, var(--accent), var(--accent2), var(--accent)) border-box;
+    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    animation: spin 8s linear infinite;
+    opacity: 0.4;
+  }
+
+  .avatar-ring-2 {
+    position: absolute;
+    inset: -20px;
+    border-radius: 50%;
+    border: 1px solid rgba(0,212,255,0.1);
+    animation: spin 15s linear infinite reverse;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .avatar-circle {
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #1a3a5c 0%, #0a1a2e 60%, #050d18 100%);
+    border: 2px solid var(--border);
+    overflow: hidden;
+    position: relative;
+    box-shadow: var(--glow), inset 0 0 60px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .avatar-svg { width: 180px; height: 180px; }
+
+  .avatar-circle.listening {
+    box-shadow: 0 0 0 4px rgba(0,212,255,0.3), var(--glow);
+    animation: listenPulse 1s ease-in-out infinite;
+  }
+
+  @keyframes listenPulse {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(0,212,255,0.3), var(--glow); }
+    50% { box-shadow: 0 0 0 12px rgba(0,212,255,0.1), 0 0 60px rgba(0,212,255,0.25); }
+  }
+
+  .avatar-circle.processing {
+    animation: processPulse 0.8s ease-in-out infinite;
+  }
+
+  @keyframes processPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(123,47,255,0.3), var(--glow); }
+    50% { box-shadow: 0 0 50px rgba(123,47,255,0.5), 0 0 80px rgba(123,47,255,0.2); }
+  }
+
+  .avatar-circle.talking {
+    box-shadow: 0 0 0 4px rgba(0,255,157,0.2), var(--glow);
+  }
+
+  .waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 40px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .waveform.active { opacity: 1; }
+
+  .wave-bar {
+    width: 3px;
+    background: var(--accent);
+    border-radius: 3px;
+    animation: wave 0.8s ease-in-out infinite;
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  .wave-bar:nth-child(1) { animation-delay: 0s; }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.4s; }
+  .wave-bar:nth-child(6) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(7) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(8) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(9) { animation-delay: 0s; }
+
+  @keyframes wave {
+    0%, 100% { height: 6px; }
+    50% { height: 30px; }
+  }
+
+  .avatar-state-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .avatar-state-label span { color: var(--accent); }
+
+  .webhook-config {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .webhook-config label {
+    display: block;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .webhook-input-row { display: flex; gap: 8px; }
+
+  .webhook-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .webhook-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.1);
+  }
+
+  .btn-save {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-save:hover { background: #fff; box-shadow: 0 0 20px rgba(0,212,255,0.4); }
+
+  .chat-panel { display: flex; flex-direction: column; gap: 20px; }
+
+  .messages {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    height: 420px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+  }
+
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .message {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    animation: msgIn 0.3s ease-out;
+  }
+
+  @keyframes msgIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .message.user { align-items: flex-end; }
+  .message.assistant { align-items: flex-start; }
+  .message.system { align-items: center; }
+
+  .msg-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .msg-bubble {
+    max-width: 85%;
+    padding: 14px 18px;
+    border-radius: 16px;
+    line-height: 1.6;
+    font-size: 0.85rem;
+  }
+
+  .message.user .msg-bubble {
+    background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,212,255,0.08));
+    border: 1px solid rgba(0,212,255,0.25);
+    border-bottom-right-radius: 4px;
+  }
+
+  .message.assistant .msg-bubble {
+    background: linear-gradient(135deg, rgba(123,47,255,0.12), rgba(123,47,255,0.06));
+    border: 1px solid rgba(123,47,255,0.2);
+    border-bottom-left-radius: 4px;
+  }
+
+  .message.system .msg-bubble {
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 8px 16px;
+  }
+
+  .typing-indicator {
+    display: flex;
+    gap: 5px;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, rgba(123,47,255,0.12), rgba(123,47,255,0.06));
+    border: 1px solid rgba(123,47,255,0.2);
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+    width: fit-content;
+  }
+
+  .typing-dot {
+    width: 6px; height: 6px;
+    background: var(--accent2);
+    border-radius: 50%;
+    animation: typingBounce 1.2s ease-in-out infinite;
+  }
+
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes typingBounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
+
+  .input-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .input-row { display: flex; gap: 10px; align-items: flex-end; }
+
+  .text-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    resize: none;
+    outline: none;
+    min-height: 52px;
+    max-height: 120px;
+    line-height: 1.5;
+    transition: border-color 0.2s;
+  }
+
+  .text-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0,212,255,0.08);
+  }
+
+  .text-input::placeholder { color: var(--muted); }
+
+  .btn-send, .btn-mic {
+    width: 52px; height: 52px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .btn-send {
+    background: linear-gradient(135deg, var(--accent), #0099bb);
+    color: var(--bg);
+  }
+
+  .btn-send:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,255,0.4); }
+  .btn-send:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .btn-mic {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .btn-mic:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-mic.recording {
+    background: rgba(255,61,110,0.1);
+    border-color: var(--danger);
+    color: var(--danger);
+    animation: micPulse 1s ease-in-out infinite;
+  }
+
+  @keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,61,110,0.3); }
+    50% { box-shadow: 0 0 0 8px rgba(255,61,110,0); }
+  }
+
+  .controls-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .tts-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    user-select: none;
+  }
+
+  .toggle-switch {
+    width: 36px; height: 20px;
+    background: var(--border);
+    border-radius: 10px;
+    position: relative;
+    transition: background 0.2s;
+  }
+
+  .toggle-switch.on { background: var(--accent); }
+
+  .toggle-knob {
+    width: 14px; height: 14px;
+    background: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+  }
+
+  .toggle-switch.on .toggle-knob { transform: translateX(16px); }
+
+  .voice-select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .char-count { margin-left: auto; font-size: 0.65rem; color: var(--muted); }
+
+  .workflow-info {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .workflow-icon {
+    width: 36px; height: 36px;
+    background: rgba(0,212,255,0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .workflow-text { flex: 1; }
+
+  .workflow-text h4 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+
+  .workflow-text p { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.05em; }
+
+  .n8n-badge {
+    background: rgba(234,93,26,0.15);
+    border: 1px solid rgba(234,93,26,0.3);
+    color: #ea5d1a;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: rgba(255,61,110,0.1);
+    border: 1px solid var(--danger);
+    border-radius: 10px;
+    padding: 14px 18px;
+    color: var(--danger);
+    font-size: 0.8rem;
+    max-width: 320px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  @media (max-width: 700px) {
+    .main { grid-template-columns: 1fr; }
+    .avatar-panel { position: static; }
+    .avatar-frame { width: 180px; height: 180px; }
+    .avatar-circle { width: 180px; height: 180px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⬡ PHILI · Assistant</div>
+  <div class="status-badge">
+    <div class="status-dot"></div>
+    <span id="statusText">BEREIT</span>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- AVATAR -->
+  <div class="avatar-panel">
+    <div class="avatar-frame">
+      <div class="avatar-ring-2"></div>
+      <div class="avatar-ring"></div>
+      <div class="avatar-circle" id="avatarCircle">
+        <svg class="avatar-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="faceGrad" cx="40%" cy="35%" r="65%">
+              <stop offset="0%" stop-color="#2a5a8a"/>
+              <stop offset="100%" stop-color="#0a1a30"/>
+            </radialGradient>
+            <radialGradient id="eyeGrad" cx="30%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#00d4ff"/>
+              <stop offset="100%" stop-color="#0066aa"/>
+            </radialGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <ellipse cx="100" cy="105" rx="65" ry="72" fill="url(#faceGrad)" stroke="rgba(0,212,255,0.2)" stroke-width="1"/>
+          <ellipse cx="35" cy="108" rx="8" ry="13" fill="#152840" stroke="rgba(0,212,255,0.15)" stroke-width="1"/>
+          <ellipse cx="165" cy="108" rx="8" ry="13" fill="#152840" stroke="rgba(0,212,255,0.15)" stroke-width="1"/>
+          <ellipse cx="100" cy="58" rx="68" ry="45" fill="#0c1e34"/>
+          <rect x="33" y="58" width="134" height="30" fill="#0c1e34"/>
+          <path d="M 68 85 Q 80 79 92 83" stroke="#4a8ab5" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M 108 83 Q 120 79 132 85" stroke="#4a8ab5" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <ellipse cx="80" cy="98" rx="12" ry="10" fill="#091525"/>
+          <ellipse cx="120" cy="98" rx="12" ry="10" fill="#091525"/>
+          <ellipse cx="80" cy="98" rx="8" ry="8" fill="url(#eyeGrad)" filter="url(#glow)"/>
+          <ellipse cx="120" cy="98" rx="8" ry="8" fill="url(#eyeGrad)" filter="url(#glow)"/>
+          <ellipse cx="77" cy="95" rx="3" ry="3" fill="white" opacity="0.7"/>
+          <ellipse cx="117" cy="95" rx="3" ry="3" fill="white" opacity="0.7"/>
+          <path d="M 100 108 Q 93 120 96 124 Q 100 126 104 124 Q 107 120 100 108" stroke="#4a8ab5" stroke-width="1.5" fill="none" opacity="0.6"/>
+          <path id="mouthPath" d="M 85 138 Q 100 148 115 138" stroke="#4a8ab5" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <ellipse cx="100" cy="165" rx="22" ry="6" fill="rgba(0,100,160,0.15)"/>
+          <line x1="33" y1="105" x2="45" y2="105" stroke="rgba(0,212,255,0.3)" stroke-width="1"/>
+          <line x1="155" y1="105" x2="167" y2="105" stroke="rgba(0,212,255,0.3)" stroke-width="1"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="waveform" id="waveform">
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+      <div class="wave-bar"></div>
+    </div>
+
+    <div class="avatar-state-label" id="avatarLabel">Status: <span>Bereit</span></div>
+
+    <div class="webhook-config">
+      <label>n8n Webhook URL</label>
+      <div class="webhook-input-row">
+        <input type="text" class="webhook-input" id="webhookUrl" placeholder="https://…/webhook/phili-request">
+        <button class="btn-save" onclick="saveWebhook()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat-panel">
+
+    <div class="workflow-info">
+      <div class="workflow-icon">⚡</div>
+      <div class="workflow-text">
+        <h4>n8n Workflow – Phili</h4>
+        <p id="webhookDisplay">Kein Webhook konfiguriert</p>
+      </div>
+      <div class="n8n-badge">n8n</div>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="message system">
+        <div class="msg-bubble">Phili ist bereit · Gib deinen Webhook ein und starte die Unterhaltung</div>
+      </div>
+      <div class="message assistant">
+        <div class="msg-label">PHILI</div>
+        <div class="msg-bubble">Hallo! Ich bin Phili, dein persönlicher Assistent. Wie kann ich dir heute helfen? Du kannst mir schreiben oder das Mikrofon nutzen. 🎙️</div>
+      </div>
+    </div>
+
+    <div class="input-area">
+      <div class="input-row">
+        <textarea class="text-input" id="textInput"
+          placeholder="Schreib deinen Wunsch an Phili…"
+          rows="1"
+          maxlength="1000"
+          onkeydown="handleKey(event)"
+          oninput="updateCharCount()"></textarea>
+        <button class="btn-mic" id="micBtn" onclick="toggleMic()" title="Spracheingabe">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/>
+          </svg>
+        </button>
+        <button class="btn-send" id="sendBtn" onclick="sendMessage()">
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="controls-row">
+        <label class="tts-toggle" onclick="toggleTTS()">
+          <div class="toggle-switch on" id="ttsSwitch">
+            <div class="toggle-knob"></div>
+          </div>
+          Antwort vorlesen (TTS)
+        </label>
+        <select class="voice-select" id="voiceSelect" onchange="updateVoice()">
+          <option value="">Stimme wählen…</option>
+        </select>
+        <div class="char-count"><span id="charCount">0</span>/1000</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let webhookUrl = localStorage.getItem('phili_webhook') || '';
+let ttsOn = true;
+let selectedVoice = null;
+let isRecording = false;
+let recognition = null;
+let synth = window.speechSynthesis;
+let voices = [];
+
+const avatarCircle = document.getElementById('avatarCircle');
+const avatarLabel  = document.getElementById('avatarLabel');
+const waveform     = document.getElementById('waveform');
+const messages     = document.getElementById('messages');
+const textInput    = document.getElementById('textInput');
+const sendBtn      = document.getElementById('sendBtn');
+const micBtn       = document.getElementById('micBtn');
+const ttsSwitch    = document.getElementById('ttsSwitch');
+const voiceSelect  = document.getElementById('voiceSelect');
+
+window.addEventListener('load', () => {
+  if (webhookUrl) {
+    document.getElementById('webhookUrl').value = webhookUrl;
+    document.getElementById('webhookDisplay').textContent = truncate(webhookUrl);
+  }
+  loadVoices();
+  synth.onvoiceschanged = loadVoices;
+});
+
+function truncate(url) {
+  return url.length > 50 ? url.slice(0, 47) + '…' : url;
+}
+
+function saveWebhook() {
+  webhookUrl = document.getElementById('webhookUrl').value.trim();
+  localStorage.setItem('phili_webhook', webhookUrl);
+  document.getElementById('webhookDisplay').textContent = webhookUrl ? truncate(webhookUrl) : 'Kein Webhook konfiguriert';
+  showToast('✓ Webhook gespeichert', 'success');
+}
+
+function loadVoices() {
+  voices = synth.getVoices().filter(v => v.lang.startsWith('de') || v.lang.startsWith('en'));
+  voiceSelect.innerHTML = '<option value="">Stimme wählen…</option>';
+  voices.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${v.name} (${v.lang})`;
+    voiceSelect.appendChild(opt);
+  });
+  const deIdx = voices.findIndex(v => v.lang.startsWith('de'));
+  if (deIdx >= 0) { voiceSelect.value = deIdx; selectedVoice = voices[deIdx]; }
+}
+
+function updateVoice() {
+  const idx = parseInt(voiceSelect.value);
+  selectedVoice = isNaN(idx) ? null : voices[idx];
+}
+
+function toggleTTS() {
+  ttsOn = !ttsOn;
+  ttsSwitch.classList.toggle('on', ttsOn);
+}
+
+function speak(text) {
+  if (!ttsOn || !synth) return;
+  synth.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  if (selectedVoice) utt.voice = selectedVoice;
+  utt.lang = selectedVoice?.lang || 'de-DE';
+  utt.rate = 0.95; utt.pitch = 1.05;
+  utt.onstart = () => setAvatarState('talking');
+  utt.onend   = () => setAvatarState('idle');
+  utt.onerror = () => setAvatarState('idle');
+  synth.speak(utt);
+}
+
+function setAvatarState(state) {
+  avatarCircle.classList.remove('listening', 'processing', 'talking');
+  waveform.classList.remove('active');
+  const labels = { idle: 'Bereit', listening: 'Zuhören…', processing: 'Verarbeite…', talking: 'Spricht…' };
+  avatarLabel.innerHTML = `Status: <span>${labels[state] || 'Bereit'}</span>`;
+  if (state === 'listening')  { avatarCircle.classList.add('listening');  waveform.classList.add('active'); }
+  if (state === 'processing') { avatarCircle.classList.add('processing'); }
+  if (state === 'talking')    { avatarCircle.classList.add('talking');    waveform.classList.add('active'); }
+}
+
+function toggleMic() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    showToast('❌ Spracherkennung nicht unterstützt', 'error'); return;
+  }
+  if (isRecording) { recognition?.stop(); return; }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'de-DE';
+  recognition.interimResults = true;
+  recognition.onstart  = () => { isRecording = true;  micBtn.classList.add('recording');    setAvatarState('listening'); };
+  recognition.onresult = (e) => {
+    let final = '', interim = '';
+    for (const r of e.results) r.isFinal ? (final += r[0].transcript) : (interim += r[0].transcript);
+    textInput.value = final || interim; updateCharCount();
+  };
+  recognition.onend   = () => { isRecording = false; micBtn.classList.remove('recording'); setAvatarState('idle'); if (textInput.value.trim()) sendMessage(); };
+  recognition.onerror = (e) => { isRecording = false; micBtn.classList.remove('recording'); setAvatarState('idle'); if (e.error !== 'no-speech') showToast('🎙 Fehler: ' + e.error, 'error'); };
+  recognition.start();
+}
+
+async function sendMessage() {
+  const text = textInput.value.trim();
+  if (!text) return;
+  if (!webhookUrl) { showToast('⚠️ Bitte zuerst Webhook URL eingeben!', 'error'); return; }
+
+  addMessage('user', text);
+  textInput.value = ''; updateCharCount();
+  sendBtn.disabled = true;
+  setAvatarState('processing');
+  showTyping();
+
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, timestamp: new Date().toISOString(), source: 'phili-avatar' })
+    });
+    hideTyping();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const ct = res.headers.get('content-type') || '';
+    let reply = '';
+    if (ct.includes('application/json')) {
+      const json = await res.json();
+      reply = json.reply || json.response || json.message || json.output || json.text || json.answer || JSON.stringify(json, null, 2);
+    } else {
+      reply = await res.text();
+    }
+    if (!reply) reply = '✓ Workflow ausgeführt (keine Textantwort)';
+    addMessage('assistant', reply);
+    speak(reply);
+    setAvatarState('idle');
+  } catch (err) {
+    hideTyping();
+    setAvatarState('idle');
+    addMessage('assistant', '❌ Verbindungsfehler: ' + err.message);
+    showToast('❌ ' + err.message, 'error');
+  }
+  sendBtn.disabled = false;
+}
+
+let typingEl = null;
+
+function addMessage(role, text) {
+  const div = document.createElement('div');
+  div.className = `message ${role}`;
+  if (role !== 'system') {
+    const lbl = document.createElement('div');
+    lbl.className = 'msg-label';
+    lbl.textContent = role === 'user' ? 'DU' : 'PHILI';
+    div.appendChild(lbl);
+  }
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+  div.appendChild(bubble);
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function showTyping() {
+  typingEl = document.createElement('div');
+  typingEl.className = 'message assistant';
+  const lbl = document.createElement('div'); lbl.className = 'msg-label'; lbl.textContent = 'PHILI';
+  typingEl.appendChild(lbl);
+  const ind = document.createElement('div'); ind.className = 'typing-indicator';
+  ind.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+  typingEl.appendChild(ind);
+  messages.appendChild(typingEl);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function hideTyping() { if (typingEl) { typingEl.remove(); typingEl = null; } }
+
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function updateCharCount() { document.getElementById('charCount').textContent = textInput.value.length; }
+
+function showToast(msg, type = 'error') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = type === 'success' ? 'var(--success)' : 'var(--danger)';
+  t.style.color       = type === 'success' ? 'var(--success)' : 'var(--danger)';
+  t.style.background  = type === 'success' ? 'rgba(0,255,157,0.08)' : 'rgba(255,61,110,0.08)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
