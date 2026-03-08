@@ -633,7 +633,7 @@
     <div class="webhook-config">
       <label>n8n Webhook URL</label>
       <div class="webhook-input-row">
-        <input type="text" class="webhook-input" id="webhookUrl" placeholder="https://mkpitconsulting.app.n8n.cloud/webhook/973a921e-e48b-464c-9623-38875d319574/chat">
+        <input type="text" class="webhook-input" id="webhookUrl" placeholder="https://…/webhook/…/chat">
         <button class="btn-save" onclick="saveWebhook()">OK</button>
       </div>
     </div>
@@ -690,9 +690,20 @@
           Antwort vorlesen (TTS)
         </label>
         <select class="voice-select" id="voiceSelect" onchange="updateVoice()">
-          <option value="">Stimme wählen…</option>
+          <option value="nova">Nova (weiblich)</option>
+          <option value="alloy">Alloy (neutral)</option>
+          <option value="echo">Echo (männlich)</option>
+          <option value="fable">Fable (britisch)</option>
+          <option value="onyx">Onyx (tief)</option>
+          <option value="shimmer">Shimmer (sanft)</option>
         </select>
         <div class="char-count"><span id="charCount">0</span>/1000</div>
+      </div>
+      <div class="controls-row" style="margin-top:4px">
+        <input type="password" class="webhook-input" id="openaiKey"
+          placeholder="OpenAI API Key (sk-…)"
+          style="font-size:0.7rem;padding:8px 12px;flex:1">
+        <button class="btn-save" style="font-size:0.65rem;padding:8px 12px" onclick="saveOpenAIKey()">KEY OK</button>
       </div>
     </div>
   </div>
@@ -702,12 +713,12 @@
 
 <script>
 let webhookUrl = localStorage.getItem('phili_webhook') || 'https://mkpitconsulting.app.n8n.cloud/webhook/973a921e-e48b-464c-9623-38875d319574/chat';
+let openaiApiKey = localStorage.getItem('phili_openai_key') || '';
 let ttsOn = true;
-let selectedVoice = null;
+let selectedVoice = 'nova';
 let isRecording = false;
 let recognition = null;
-let synth = window.speechSynthesis;
-let voices = [];
+let currentAudio = null;
 
 const avatarCircle = document.getElementById('avatarCircle');
 const avatarLabel  = document.getElementById('avatarLabel');
@@ -724,9 +735,16 @@ window.addEventListener('load', () => {
     document.getElementById('webhookUrl').value = webhookUrl;
     document.getElementById('webhookDisplay').textContent = truncate(webhookUrl);
   }
-  loadVoices();
-  synth.onvoiceschanged = loadVoices;
+  if (openaiApiKey) {
+    document.getElementById('openaiKey').value = openaiApiKey;
+  }
 });
+
+function saveOpenAIKey() {
+  openaiApiKey = document.getElementById('openaiKey').value.trim();
+  localStorage.setItem('phili_openai_key', openaiApiKey);
+  showToast('✓ OpenAI Key gespeichert', 'success');
+}
 
 function truncate(url) {
   return url.length > 50 ? url.slice(0, 47) + '…' : url;
@@ -739,22 +757,8 @@ function saveWebhook() {
   showToast('✓ Webhook gespeichert', 'success');
 }
 
-function loadVoices() {
-  voices = synth.getVoices().filter(v => v.lang.startsWith('de') || v.lang.startsWith('en'));
-  voiceSelect.innerHTML = '<option value="">Stimme wählen…</option>';
-  voices.forEach((v, i) => {
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = `${v.name} (${v.lang})`;
-    voiceSelect.appendChild(opt);
-  });
-  const deIdx = voices.findIndex(v => v.lang.startsWith('de'));
-  if (deIdx >= 0) { voiceSelect.value = deIdx; selectedVoice = voices[deIdx]; }
-}
-
 function updateVoice() {
-  const idx = parseInt(voiceSelect.value);
-  selectedVoice = isNaN(idx) ? null : voices[idx];
+  selectedVoice = document.getElementById('voiceSelect').value || 'nova';
 }
 
 function toggleTTS() {
@@ -762,17 +766,49 @@ function toggleTTS() {
   ttsSwitch.classList.toggle('on', ttsOn);
 }
 
-function speak(text) {
-  if (!ttsOn || !synth) return;
-  synth.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  if (selectedVoice) utt.voice = selectedVoice;
-  utt.lang = selectedVoice?.lang || 'de-DE';
-  utt.rate = 0.95; utt.pitch = 1.05;
-  utt.onstart = () => setAvatarState('talking');
-  utt.onend   = () => setAvatarState('idle');
-  utt.onerror = () => setAvatarState('idle');
-  synth.speak(utt);
+async function speak(text) {
+  if (!ttsOn) return;
+
+  // Fallback: Browser TTS wenn kein API Key
+  if (!openaiApiKey) {
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = 'de-DE'; utt.rate = 0.95; utt.pitch = 1.05;
+    utt.onstart = () => setAvatarState('talking');
+    utt.onend   = () => setAvatarState('idle');
+    synth.speak(utt);
+    return;
+  }
+
+  // OpenAI TTS
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  setAvatarState('talking');
+  try {
+    const res = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'tts-1',
+        input: text,
+        voice: selectedVoice || 'nova',
+        speed: 1.0
+      })
+    });
+    if (!res.ok) throw new Error('TTS Fehler ' + res.status);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    currentAudio = new Audio(url);
+    currentAudio.onended = () => { setAvatarState('idle'); URL.revokeObjectURL(url); };
+    currentAudio.onerror = () => setAvatarState('idle');
+    currentAudio.play();
+  } catch(err) {
+    setAvatarState('idle');
+    showToast('🔊 TTS Fehler: ' + err.message, 'error');
+  }
 }
 
 function setAvatarState(state) {
