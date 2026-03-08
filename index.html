@@ -204,9 +204,9 @@ loadGLTFScript(() => {
       scene.add(avatarScene);
 
       // Camera: frame head/upper body
-      const headY = size2.y * 0.78;
-      camera.position.set(0, headY, headY * 1.35);
-      camera.lookAt(0, headY * 0.85, 0);
+      const headY = size2.y * 0.88;
+      camera.position.set(0, headY * 1.05, headY * 0.9);
+      camera.lookAt(0, headY * 0.95, 0);
 
       // Morph targets for lipsync
       avatarScene.traverse(obj => {
@@ -308,7 +308,7 @@ async function speak(text) {
     await audioEl.play();
   } catch(e) {
     stopLips();setState('idle');busy=false;
-    const u=new SpeechSynthesisUtterance(text);u.lang='de-DE';speechSynthesis.speak(u);
+    showErr('TTS Fehler – bitte kurz warten');
   }
 }
 
