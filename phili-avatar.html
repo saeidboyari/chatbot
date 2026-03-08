@@ -633,7 +633,7 @@
     <div class="webhook-config">
       <label>n8n Webhook URL</label>
       <div class="webhook-input-row">
-        <input type="text" class="webhook-input" id="webhookUrl" placeholder="https://…/webhook/phili-request">
+        <input type="text" class="webhook-input" id="webhookUrl" placeholder="https://…/webhook/…/chat">
         <button class="btn-save" onclick="saveWebhook()">OK</button>
       </div>
     </div>
@@ -701,7 +701,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-let webhookUrl = localStorage.getItem('phili_webhook') || '';
+let webhookUrl = localStorage.getItem('phili_webhook') || 'https://mkpitconsulting.app.n8n.cloud/webhook/973a921e-e48b-464c-9623-38875d319574/chat';
 let ttsOn = true;
 let selectedVoice = null;
 let isRecording = false;
@@ -817,10 +817,16 @@ async function sendMessage() {
   showTyping();
 
   try {
+    // Unterstützt sowohl n8n Chat-Trigger (/chat) als auch normalen Webhook
+    const isChatTrigger = webhookUrl.endsWith('/chat');
+    const body = isChatTrigger
+      ? { chatInput: text, sessionId: 'phili-' + Date.now() }
+      : { message: text, timestamp: new Date().toISOString(), source: 'phili-avatar' };
+
     const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, timestamp: new Date().toISOString(), source: 'phili-avatar' })
+      body: JSON.stringify(body)
     });
     hideTyping();
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -828,7 +834,9 @@ async function sendMessage() {
     let reply = '';
     if (ct.includes('application/json')) {
       const json = await res.json();
-      reply = json.reply || json.response || json.message || json.output || json.text || json.answer || JSON.stringify(json, null, 2);
+      // n8n Chat-Trigger antwortet mit { output: "..." }
+      // normaler Webhook mit { reply: "..." } oder anderen Feldern
+      reply = json.output || json.reply || json.response || json.message || json.text || json.answer || JSON.stringify(json, null, 2);
     } else {
       reply = await res.text();
     }
