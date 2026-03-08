@@ -102,7 +102,13 @@ body {
       <div class="spinner"></div>
       <div class="load-txt" id="loadTxt">Phili lädt…</div>
     </div>
-    <div class="nametag">Phili</div>
+    <div id="startOverlay" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:rgba(10,15,26,0.7);backdrop-filter:blur(4px);z-index:20;cursor:pointer;border-radius:24px;" onclick="startPhili()">
+    <div style="width:56px;height:56px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 30px rgba(88,166,255,0.5);">
+      <svg width="22" height="22" fill="white" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    </div>
+    <div style="color:var(--text);font-size:0.85rem;font-weight:600;letter-spacing:0.05em;">Phili starten</div>
+  </div>
+  <div class="nametag">Phili</div>
     <div class="badge" id="badge">Bereit</div>
   </div>
   <div class="bubble-area" id="bubbleArea"></div>
@@ -346,6 +352,13 @@ function toggleMic() {
 function showErr(msg) {
   const t=document.getElementById('errToast');t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ── START (unlock audio autoplay) ──
+function startPhili() {
+  const overlay = document.getElementById('startOverlay');
+  if (overlay) overlay.remove();
+  doGreeting();
 }
 
 // ── GREETING ──
